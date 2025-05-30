@@ -1,0 +1,22 @@
+<!-- templates/startup.html -->
+{% extends "base.html" %}
+{% block content %}
+<h2>🔐 Säker åtkomst till BudgetApp</h2>
+
+{% if generated %}
+  <div class="alert alert-warning">
+    <strong>Ditt nya lösenord har genererats:</strong><br>
+    <code>{{ get_flashed_messages()[0] }}</code>
+    <br><br>
+    <span class="text-danger">Skriv ner det! Det visas bara en gång.</span>
+  </div>
+{% else %}
+<form method="post">
+    <div class="mb-3">
+        <label for="password">Lösenord:</label>
+        <input type="password" class="form-control" name="password" id="password" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Logga in</button>
+</form>
+{% endif %}
+{% endblock %}

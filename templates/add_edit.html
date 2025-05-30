@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ "Redigera" if transaction else "Ny" }} transaktion</h2>
+
+<form method="post">
+    <!-- Datum -->
+    <div class="mb-3">
+        <label for="date" class="form-label">Datum</label>
+        <input type="date" class="form-control" name="date" id="date"
+            value="{{ transaction[4] if transaction else current_date }}" required> 
+    </div>
+
+    <!-- Kategori -->
+    <div class="mb-3">
+        <label for="category" class="form-label">Kategori</label>
+        <input type="text" name="category" id="category" class="form-control"
+            list="category-list" required
+            value="{{ transaction[1] if transaction else '' }}">
+        <datalist id="category-list">
+            {% for cat in categories %}
+                <option value="{{ cat[1] }}">{{ cat[1] }} ({{ cat[2] }})</option>
+            {% endfor %}
+        </datalist>
+        <div class="form-text">Välj en kategori eller skriv in en ny</div>
+    </div>
+
+
+    <!-- Namn på artikel -->
+    <div class="mb-3">
+        <label for="item_name" class="form-label">Namn</label>
+        <input type="text" class="form-control" name="item_name" id="item_name"
+               value="{{ transaction[2] if transaction else '' }}" required>
+    </div>
+
+    <!-- Beskrivning -->
+    <div class="mb-3">
+        <label for="description" class="form-label">Beskrivning</label>
+        <input type="text" class="form-control" name="description" id="description"
+               value="{{ transaction[5] if transaction else '' }}">
+    </div>
+
+    <!-- Skattesats -->
+    <div class="mb-3">
+        <label for="taxrate" class="form-label">Skattesats (%)</label>
+        <input type="number" step="0.01" class="form-control" name="taxrate" id="taxrate" value="{{ transaction[7] if transaction else 30 }}" required>
+    </div>
+
+    <!-- Brutto -->
+    <div class="mb-3">
+        <label for="brutto" class="form-label">Bruttobelopp</label>
+        <input type="number" step="0.01" class="form-control" id="brutto">
+    </div>
+
+    <!-- Skatt -->
+    <div class="mb-3">
+        <label for="skatt" class="form-label">Skatt (kr)</label>
+        <input type="number" step="0.01" class="form-control" id="skatt" readonly>
+    </div>
+
+    <!-- Netto (sparas i databasen) -->
+    <div class="mb-3">
+        <label for="amount" class="form-label">Nettobelopp</label>
+        <input type="number" step="0.01" class="form-control" name="amount" id="amount"
+               value="{{ transaction[3] if transaction else '' }}" required>
+    </div>
+
+    <!-- Typ av transaktion -->
+    <div class="mb-3">
+        <label for="type" class="form-label">Typ</label>
+        <select name="type" class="form-select" id="type">
+            <option value="Inkomst" {% if transaction and transaction[6] == "Inkomst" %}selected{% endif %}>Inkomst</option>
+            <option value="Utgift" {% if transaction and transaction[6] == "Utgift" %}selected{% endif %}>Utgift</option>
+        </select>
+    </div>
+
+    <!-- Knappar -->
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">💾 Spara</button>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Avbryt</a>
+    </div>
+</form>
+
+<!-- Raderingsknapp -->
+{% if transaction %}
+<hr>
+<form method="post" action="{{ url_for('delete_transaction', id=transaction[0]) }}"
+      onsubmit="return confirm('Är du säker på att du vill radera denna transaktion?');">
+    <button type="submit" class="btn btn-danger">🗑 Radera transaktion</button>
+</form>
+{% endif %}
+
+<!-- JavaScript för skatteberäkning -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const bruttoInput = document.getElementById("brutto");
+    const skattInput = document.getElementById("skatt");
+    const nettoInput = document.getElementById("amount");
+    const taxrateInput = document.getElementById("taxrate");
+
+    {% if transaction and transaction[3] %}
+    const netto = parseFloat("{{ transaction[3] }}");
+    const skattesats = parseFloat(taxrateInput.value) / 100;
+    const brutto = netto / (1 - skattesats);
+    const skatt = brutto - netto;
+
+    nettoInput.value = netto.toFixed(2);
+    bruttoInput.value = brutto.toFixed(2);
+    skattInput.value = skatt.toFixed(2);
+    {% endif %}
+
+    function updateFields() {
+        const brutto = parseFloat(bruttoInput.value) || 0;
+        const skattesats = parseFloat(taxrateInput.value) || 0;
+        const skatt = brutto * (skattesats / 100);
+        const netto = brutto - skatt;
+
+        skattInput.value = skatt.toFixed(2);
+        nettoInput.value = netto.toFixed(2);
+    }
+
+    bruttoInput.addEventListener("input", updateFields);
+    taxrateInput.addEventListener("input", updateFields);
+});
+</script>
+{% endblock %}

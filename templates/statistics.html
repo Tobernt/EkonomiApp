@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Statistik</h2>
+
+<form method="get" class="mb-4 d-flex gap-3 align-items-end">
+    <div>
+        <label for="från">Från månad:</label>
+        <select name="från" id="från" class="form-select">
+            <option value="">Alla</option>
+            {% for månad in månader %}
+                <option value="{{ månad }}" {% if från == månad %}selected{% endif %}>{{ månad }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label for="till">Till månad:</label>
+        <select name="till" id="till" class="form-select">
+            <option value="">Alla</option>
+            {% for månad in månader %}
+                <option value="{{ månad }}" {% if till == månad %}selected{% endif %}>{{ månad }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Filtrera</button>
+</form>
+
+<!-- Filter-knappar -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex gap-2">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="toggleInkomst" checked>
+            <label class="form-check-label" for="toggleInkomst">Inkomst</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="toggleSkatt" checked>
+            <label class="form-check-label" for="toggleSkatt">Skatt</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="toggleUtgift" checked>
+            <label class="form-check-label" for="toggleUtgift">Utgift</label>
+        </div>
+    </div>
+    <button id="toggleChart" class="btn btn-info btn-sm">📊 Växla diagram</button>
+</div>
+
+<canvas id="statChart" height="100"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const rawData = {{ transactions|tojson }};
+const labels = [...new Set(rawData.map(r => r[0]))];
+
+const datasets = [];
+const monthTotals = {};
+labels.forEach(m => monthTotals[m] = { netto: 0, skatt: 0, brutto: 0, utgift: 0 });
+
+const colorPalette = {
+    inkomster: ["#145A32", "#196F3D", "#1D8348", "#229954", "#28B463", "#2ECC71", "#58D68D", "#82E0AA"],
+    skatter:    ["#7D6608", "#9A7D0A", "#B7950B", "#D4AC0D", "#F1C40F", "#F4D03F", "#F7DC6F", "#FCF3CF"],
+    utgifter:   ["#78281F", "#922B21", "#A93226", "#C0392B", "#CD6155", "#E74C3C", "#EC7063", "#F5B7B1"]
+};
+
+let colorIndex = 0;
+const colorMap = {};
+function getColor(label, type) {
+    const key = label.split(" (")[0]; // Tar bort (Netto), (Skatt), etc.
+    if (!colorMap[key]) {
+        let palette = colorPalette.inkomster;
+        if (type === "Utgift") palette = colorPalette.utgifter;
+        if (type === "Skatt")  palette = colorPalette.skatter;
+        colorMap[key] = palette[colorIndex % palette.length];
+        colorIndex++;
+    }
+    return colorMap[key];
+}
+
+rawData.forEach(([month, desc, amount, type, taxrate]) => {
+    if (type === "Inkomst") {
+        const skatt = amount * taxrate;
+
+        const brutto = amount + skatt;
+
+        datasets.push({
+            label: `${desc} (Netto)`,
+            data: labels.map(m => m === month ? amount : 0),
+            backgroundColor: getColor(`${desc}-netto`, "Inkomst"),
+            stack: 'inkomst'
+        });
+
+        datasets.push({
+            label: `${desc} (Skatt)`,
+            data: labels.map(m => m === month ? skatt : 0),
+            backgroundColor: getColor(`${desc}-skatt`, "Skatt"),
+            stack: 'skatt'
+        });
+
+        monthTotals[month].netto += amount;
+        monthTotals[month].skatt += skatt;
+        monthTotals[month].brutto += brutto;
+    } else if (type === "Utgift") {
+        datasets.push({
+            label: `${desc} (Utgift)`,
+            data: labels.map(m => m === month ? amount : 0),
+            backgroundColor: getColor(`${desc}-utgift`, "Utgift"),
+            stack: 'utgift'
+        });
+
+        monthTotals[month].utgift += amount;
+    }
+});
+
+const ctx = document.getElementById('statChart').getContext('2d');
+let chartType = "bar";
+
+function getChartOptions(isDark) {
+    const textColor = isDark ? '#ffffff' : '#000000';
+    const tooltipBg = isDark ? '#222' : '#f0f0f0';
+
+    return {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'top',
+                labels: {
+                    color: textColor
+                }
+            },
+            tooltip: {
+                backgroundColor: tooltipBg,
+                titleColor: textColor,
+                bodyColor: textColor,
+                footerColor: isDark ? '#cccccc' : '#333333',
+                callbacks: {
+                    label: function(context) {
+                        const label = context.dataset.label || '';
+                        const value = context.raw || 0;
+                        return `${label.split(" ")[0]}: ${value.toFixed(2)} kr`;
+                    },
+                    footer: function(items) {
+                        const månad = items[0].label;
+                        const t = monthTotals[månad];
+                        return [
+                            `Nettoinkomst: ${t.netto.toFixed(2)} kr`,
+                            `Skatt: ${t.skatt.toFixed(2)} kr`,
+                            `Brutto: ${t.brutto.toFixed(2)} kr`,
+                            `Utgift: ${t.utgift.toFixed(2)} kr`,
+                            `Resultat: ${(t.netto - t.utgift).toFixed(2)} kr`
+                        ];
+                    }
+                }
+            }
+        },
+        scales: {
+            x: {
+                stacked: true,
+                ticks: {
+                    color: textColor
+                }
+            },
+            y: {
+                stacked: true,
+                beginAtZero: true,
+                ticks: {
+                    color: textColor
+                }
+            }
+        }
+    };
+}
+
+// Lyssna på systemets färgtema
+const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+let chartOptions = getChartOptions(isDark);
+
+// Om användaren byter tema – uppdatera automatiskt
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    const newIsDark = e.matches;
+    statChart.options = getChartOptions(newIsDark);
+    statChart.update();
+});
+
+let statChart = new Chart(ctx, {
+    type: chartType,
+    data: {
+        labels: labels,
+        datasets: datasets
+    },
+    options: chartOptions
+});
+
+// Växla stapel/linjediagram
+document.getElementById("toggleChart").addEventListener("click", () => {
+    chartType = chartType === "bar" ? "line" : "bar";
+    statChart.destroy();
+    statChart = new Chart(ctx, {
+        type: chartType,
+        data: {
+            labels: labels,
+            datasets: datasets
+        },
+        options: chartOptions
+    });
+});
+
+// Visa/dölj dataset per kategori
+function updateDatasetVisibility() {
+    statChart.data.datasets.forEach(ds => {
+        const label = ds.label.toLowerCase();
+        if (label.includes("netto")) {
+            ds.hidden = !document.getElementById("toggleInkomst").checked;
+        } else if (label.includes("skatt")) {
+            ds.hidden = !document.getElementById("toggleSkatt").checked;
+        } else if (label.includes("utgift")) {
+            ds.hidden = !document.getElementById("toggleUtgift").checked;
+        }
+    });
+    statChart.update();
+}
+["toggleInkomst", "toggleSkatt", "toggleUtgift"].forEach(id =>
+    document.getElementById(id).addEventListener("change", updateDatasetVisibility)
+);
+</script>
+{% endblock %}

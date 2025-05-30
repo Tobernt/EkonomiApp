@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>📥 Importera transaktioner från fil</h2>
+
+<div class="card p-4 shadow-sm">
+    <form method="post" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label for="file" class="form-label">Välj CSV- eller Excel-fil</label>
+            <input type="file" class="form-control" name="file" id="file" accept=".csv,.xlsx" required>
+            <div class="form-text">
+                Filen bör innehålla kolumnerna: <strong>Datum</strong>, <strong>Beskrivning</strong>,
+                <strong>Belopp</strong> och <strong>Typ</strong> (Inkomst/Utgift).
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success">📂 Importera</button>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">⬅️ Avbryt</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
