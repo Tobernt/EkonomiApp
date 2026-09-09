@@ -1,9 +1,12 @@
 import sqlite3
 import pandas as pd
 
-DB_NAME = "budget.db"
+from settings import DATA_DIR, DATABASE_PATH
+
+DB_NAME = DATABASE_PATH
 
 def init_db():
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
 

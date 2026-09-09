@@ -2,15 +2,15 @@ from flask import Flask, render_template, request, redirect, url_for, flash, sen
 import database
 import logic
 import os
-import json
 from utils import require_auth
 from werkzeug.utils import secure_filename
 from datetime import datetime
-from helpers import has_password_file, create_password_file, check_password
+from helpers import has_password_file, check_password
+from settings import DATA_DIR, load_session_key
 
 app = Flask(__name__)
-app.secret_key = "superhemlig"
-UPLOAD_FOLDER = "uploads"
+app.secret_key = load_session_key()
+UPLOAD_FOLDER = str(DATA_DIR / "uploads")
 LOCK_FILENAME = ".lock.json"
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -18,11 +18,11 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 @app.route("/start", methods=["GET", "POST"])
 def start():
     if not has_password_file():
-        flash("Ingen 'key.json' hittades. Lägg till ett lösenord med verktyget först.", "danger")
-        return render_template("startup.html", generated=True)
+        flash("Ingen 'key.json' hittades. Kör python setup_local.py först.", "danger")
+        return render_template("startup.html", setup_required=True)
 
     if request.method == "POST":
-        password = request.form.get("password", "").strip()
+        password = request.form.get("password", "")
         if check_password(password):
             session["authenticated"] = True
             flash("Inloggning lyckades!", "success")
@@ -31,7 +31,7 @@ def start():
             flash("Fel lösenord.", "danger")
             return redirect(url_for("start"))
 
-    return render_template("startup.html", generated=False)
+    return render_template("startup.html", setup_required=False)
 
 @app.route("/")
 @require_auth
@@ -111,7 +111,7 @@ def delete_transaction(id):
 @app.route("/export/excel")
 @require_auth
 def export_excel():
-    filename = "exporterade_transaktioner.xlsx"
+    filename = str(DATA_DIR / "exporterade_transaktioner.xlsx")
     database.export_to_excel(filename)
     return send_file(filename, as_attachment=True)
 
@@ -165,7 +165,6 @@ def unlock():
     session.clear()
     return "", 204
 
-# ✅ This block only runs in development
 if __name__ == "__main__":
     database.init_db()
     app.run(debug=True)

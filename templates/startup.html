@@ -3,12 +3,9 @@
 {% block content %}
 <h2>🔐 Säker åtkomst till BudgetApp</h2>
 
-{% if generated %}
+{% if setup_required %}
   <div class="alert alert-warning">
-    <strong>Ditt nya lösenord har genererats:</strong><br>
-    <code>{{ get_flashed_messages()[0] }}</code>
-    <br><br>
-    <span class="text-danger">Skriv ner det! Det visas bara en gång.</span>
+    Lokal konfiguration saknas. Kör <code>python setup_local.py</code> innan du loggar in.
   </div>
 {% else %}
 <form method="post">

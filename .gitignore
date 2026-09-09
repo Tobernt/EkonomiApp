@@ -1,0 +1,25 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+instance/
+uploads/
+.env
+.env.*
+key.json
+session.key
+*.db
+!fixtures/budget.sample.db
+*.db-*
+*.sqlite*
+*.xlsx
+*.csv
+*.log
+.lock.json
+.idea/
+.vscode/
+
+# Superseded local prototype files
+PasGen/
+Ekonomihantering_Teknisk_Dokumentation.pdf
